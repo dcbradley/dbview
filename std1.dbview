@@ -1,0 +1,49 @@
+
+@compiletime require_php 'dbview_stdlib1.php'
+
+column *.*
+  name:      <<name>>
+  table:     <<table>>
+  select:         eval { return static::table()::name() . "." . static::name(); }
+  text_colname:   eval { return defaultTextColname(static::name()); }
+  html_rowname:   eval { return htmlspecialchars(static::text_colname()); }
+  html_colname:   eval { return static::html_rowname(); }
+  value($row)          { return $row[<<name()>>]; }
+  text_value($row)     { return static::text_format(static::value($row)); }
+  html_value($row)     { return static::html_format(static::text_value($row)); }
+  text_format($value)  { return $value; }
+  html_format($value)  { return htmlspecialchars($value); }
+  @compiletime requires:  { return null; }
+  @compiletime is_table() { return false; }
+
+table *
+  name:      <<name>>
+  table:     <<table>>
+  columns:   <<columns>>
+  from:                   { return <<name()>>; }
+  @compiletime is_table() { return true; }
+
+view *
+  name:      <<name>>
+  columns:   <<columns>>
+  hidden_columns: eval { return getColRequirements(static::columns(),static::requires()); }
+  select:         eval { return getSelectSQL(static::columns(),static::hidden_columns()); }
+  from:           eval { return getFromSQL(static::table(),static::columns(),static::hidden_columns()); }
+  where:               { return null; }
+  order_by:            { return null; }
+  sql($and_where="")   {
+    $sql = "SELECT " . static::select() . " FROM " . static::from();
+    $where = static::where();
+    if( !$where ) $where = $and_where;
+    else if( $and_where ) $where = "(" . $where . ") AND (" . $and_where . ")";
+    if( $where ) {
+      $sql .= " WHERE " . $where;
+    }
+    $order_by = static::order_by();
+    if( $order_by ) {
+      $sql .= " ORDER BY " . $order_by;
+    }
+    return $sql;
+  }
+  @compiletime requires:  { return null; }
+  @compiletime is_table() { return false; }

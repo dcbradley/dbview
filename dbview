@@ -1,0 +1,77 @@
+#!/usr/bin/php
+<?php
+require "dbviewcompiler.php";
+
+function PrintUsage() {
+  echo "dbview sourcefile outputfile\n";
+  echo "\n";
+  echo "Compile dbview code into php.  For a description of the dbview language, see\n";
+  echo "https://github.com/dcbradley/dbview\n";
+  exit(2);
+}
+
+# this function exists to work around getopt() from prior to PHP 7.1
+function findNextOpt(&$next_opt,$args,$option,$value) {
+  if( is_array($value) ) {
+    foreach( $value as $v ) {
+      findNextOpt($next_opt,$args,$option,$v);
+    }
+    return;
+  }
+  for($i=$next_opt; $i < count($args); $i++) {
+    $arg = $args[$i];
+    if( strncmp($arg,"--",2)==0 ) {
+      $arg = substr($arg,2);
+      $pos = strpos($arg,"=");
+      $val = null;
+      if( $pos !== false ) {
+        $val = substr($arg,$pos+1);
+	$arg = substr($arg,0,$pos);
+      }
+      if( $arg == $option ) {
+        $next_opt = $i+1;
+	if( $pos === false && $value ) $next_opt += 1;
+	return;
+      }
+    }
+    else if( strncmp($arg,"-",1)==0 ) {
+      if( strpos($arg,$option) !== false ) {
+        $next_opt = $i+1;
+	if( $value ) $next_opt += 1;
+	return;
+      }
+    }
+  }
+}
+
+if( PHP_MAJOR_VERSION > 7 || PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1 ) {
+  $options = getopt("h",array("help"),$next_opt);
+  $args = array_splice($argv,$next_opt);
+} else {
+  $options = getopt("h",array("help"));
+  $next_opt = 1;
+  $args = null;
+}
+
+foreach( $options as $option => $value ) {
+  if( !$args ) {
+    findNextOpt($next_opt,$argv,$option,$value);
+  }
+  if( $option == "h" || $option == "help" ) PrintUsage();
+}
+
+if( !$args ) {
+  $args = array_splice($argv,$next_opt);
+}
+
+if( count($args) && $args[0] == "--" ) $args = array_splice($args,1);
+
+if( count($args) != 2 ) {
+  echo "Wrong number of arguments (",count($args)," instead of 2).\n";
+  PrintUsage();
+}
+
+$sourcefile = $args[0];
+$destfile = $args[1];
+
+DBViewCompile($sourcefile,$destfile);
