@@ -155,7 +155,7 @@ does not attempt to parse the PHP code other than to count opening and
 closing braces.  Even braces within comments and strings count.
 
 When used to define an attribute value, the PHP code should return the
-desired value.  The following two attribute defitions are equivalent,
+desired value.  The following two attribute definitions are equivalent,
 one using DBView syntax and one using PHP.
 
     attrname: "This is the value."
@@ -472,7 +472,7 @@ The array of columns visible in this view.  Additional columns may be
 automatically included in `hidden_columns` due to some columns in this
 array requiring other columns that are not included in this array.
 
-The defualt value is to include the columns that are defined with this
+The default value is to include the columns that are defined with this
 view as their table.  Usually, the default is overridden.  It is rare to
 define columns with a view as their table.
 
@@ -499,7 +499,7 @@ The array of columns and tables not visible but required by visible
 columns in this view.  The default combines all the `requires`
 attributes of this view and the columns listed in `columns`.
 
-This attribute is rarely overridden.  Instead, the `requries`
+This attribute is rarely overridden.  Instead, the `requires`
 attribute of this view or of the visible columns is set.
 
 ### view attribute: `select`
