@@ -45,10 +45,12 @@ class Lex {
   private $at_newline = true;
   private $filestack;
   private $searchpath;
+  private $already_included;
 
   function __construct() {
     $this->filestack = array();
     $this->searchpath = array(__DIR__);
+    $this->already_included = array();
   }
   function rewind() {
     rewind($this->F);
@@ -77,6 +79,13 @@ class Lex {
     if( !$full_fname ) {
       $this->errMsg("Failed to find $fname");
     }
+
+    $real_fname = realpath($full_fname);
+    if( in_array($real_fname,$this->already_included) ) {
+      return;
+    }
+    $this->already_included[] = $real_fname;
+
     $fname = $full_fname;
     $F = fopen($fname,"r");
     if( !$F ) {
