@@ -702,17 +702,17 @@ abstract class DBViewParser {
       $token = $lex->nextToken();
       if( $token->type != NEWLINE_TOK ) {
         if( $token->type != DOT_TOK ) {
-          $this->errMsg("expected dot after table name");
+          $this->errMsg("expected dot after table name $tablename");
         }
         $token = $lex->nextToken();
         if( $token->type != NAME_TOK && $token->type != GLOB_TOK ) {
-          $this->errMsg("expected column name");
+          $this->errMsg("expected column name after $tablename");
         }
         $colname = $token->value;
         $token = $lex->nextToken();
       }
       if( $token->type != NEWLINE_TOK ) {
-        $this->errMsg("expected newline");
+        $this->errMsg("expected newline after object definition");
       }
       $token = $lex->nextToken();
       $attrs = array();
