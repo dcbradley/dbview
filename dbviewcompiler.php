@@ -349,10 +349,51 @@ class Lex {
     }
 
     if( $this->ch == "#" ) {
-      while( $this->ch != "\n" ) {
+      while( $this->ch != "\n" && !$this->eof() ) {
         $this->nextChar();
       }
       return $this->nextToken();
+    }
+
+    if( $this->ch == "/" ) {
+      $this->nextChar();
+      if( $this->ch == "/" ) {
+        while( $this->ch != "\n" && !$this->eof() ) {
+          $this->nextChar();
+        }
+        return $this->nextToken();
+      }
+      else if( $this->ch == "*" ) {
+        $begin_line = $this->linecount;
+        $this->nextChar();
+        $level = 1;
+        while( !$this->eof() ) {
+          if( $this->ch == "*" ) {
+            $this->nextChar();
+            if( $this->ch == "/" ) {
+              $this->nextChar();
+              if( --$level == 0 ) break;
+            }
+          }
+          else if( $this->ch == "/" ) {
+            $this->nextChar();
+            if( $this->ch == "*" ) {
+              $this->nextChar();
+              $level += 1;
+            }
+          }
+          else {
+            $this->nextChar();
+          }
+        }
+        if( $level > 0 ) {
+          $this->errMsg("end of file reached inside /* comment",$begin_line);
+        }
+        return $this->nextToken();
+      }
+      else {
+        $this->errMsg("unexpected character /");
+      }
     }
 
     if( $this->eof() ) {
