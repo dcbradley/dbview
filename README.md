@@ -8,7 +8,20 @@ set of properties that can be easily extended.
 
 The generated PHP code is in the form of static class definitions.
 The intention is to make good use of the web server's opcode cache by
-avoiding a lot of object creation and setup at runtime.
+avoiding a lot of object creation and initialization at runtime.
+
+# Installation
+
+Requirements: PHP.  The DBView compiler has been tested in PHP 7 under
+Linux and OS X.  It has not been tested in Windows.
+
+Clone the DBView repository:
+
+    git clone https://github.com/dcbradley/dbview.git
+
+Compile a dbview source file to php:
+
+    /path/to/dbview/dbview infile.dbview outfile.php
 
 # DBView Language Overview
 
@@ -125,6 +138,8 @@ following:
       some_table:           { return tablename::class; }
       some_view:            { return viewname::class; }
 
+Objects may be referenced before they are declared.
+
 ## Arrays
 
 Array values begin with `[` and end with `]`.  The values in the array
@@ -152,7 +167,8 @@ PHP code blocks begin with `{` and end with `}`.  Braces must be
 balanced within the code block, so that the end of the PHP code block
 is correctly detected by the DBView compiler.  The DBView compiler
 does not attempt to parse the PHP code other than to count opening and
-closing braces.  Even braces within comments and strings count.
+closing braces.  Even braces within comments and strings count.  If the
+PHP code contains unbalanced braces, balance them by using a comment.
 
 When used to define an attribute value, the PHP code should return the
 desired value.  The following two attribute definitions are equivalent,
@@ -161,6 +177,21 @@ one using DBView syntax and one using PHP.
     attrname: "This is the value."
 
     attrname: { return "This is the value."; }
+
+All attributes become static member functions in the generated PHP
+code.  If the function requires arguments, the attribute is declared
+in the folowing functional style:
+
+    attrname($arg1,$arg2) { return $arg1 . $arg2; }
+
+If the attribute has a default that was declared with arguments, it is
+not necessary to define the arguments when overriding it.  In the
+following example, the `html_format` attribute is overridden.  The
+default definition declares an argument with the name `$value`, so the
+following code can refer to that argument without explicitly declaring
+it.
+
+    html_format: { return str_replace(" ","&nbsp;",$value); }
 
 When used outside of an object declaration, the `php` keyword must
 precede the code block.  The following example ensures that a PHP file
@@ -250,6 +281,9 @@ specified.
 Files are searched for in the same directory as the file that requires
 them and also in the dbview compiler directory.
 
+When the same file is required more than once, it is only inserted the
+first time.
+
 ## Defining default attributes
 
 Default attributes may be specified by defining an object with a
@@ -270,6 +304,30 @@ The following example sets a custom-defined attribute `input_type` to
     column *.*_DATE
       input_type: "date"
 
+Like any attribute, default attributes can be defined as member
+functions that take arguments.  In the following example, the
+`echo_td` member function is defined to take an argument `$row` that
+contains the associative array of data loaded from the database.
+
+    column *.*
+      echo_td($row) {
+        echo "<td>",static::html_value($row),"</td>";
+      }
+
+When a default member function has been defined with arguments,
+functions that override the default can be declared with or without
+arguments.  When declared without arguments, the overriding function
+is declared with the same argument definition as the default.  In the
+following example, a column, `course.GRADE` is defined with an
+`echo_td` member function that overrides the default defined above and
+which implicitly uses the same argument definition.
+
+    course.GRADE
+      echo_td: {
+        $cl = gradeClass(static::value($row));
+        echo "<td class='$cl'>",static::html_value($row),"</td>";
+      }
+
 ## join
 
 The `join` keyword is used to specify the SQL needed to join one table
@@ -284,6 +342,22 @@ the `student` table.
 Some views might not require all possible tables to be joined.  Only
 the required tables will be joined when creating the SQL for a
 particular view.
+
+## comments
+
+Comments are ignored by the DBView compiler.  The following
+comment styles are supported:
+
+    # single-line comment
+
+    // another single-line comment
+
+    /* multi-line
+       comment */
+
+    /* multi-line comment
+       /* containing /*nested*/ comments */
+    */
 
 # std1
 
@@ -351,7 +425,7 @@ The reason for having different attributes for `html_rowname` and
 achieve that, it might contain explicit `<br>` tags, which would not
 be wanted in `html_rowname`.
 
-### column attribute: `value`
+### column attribute: `value($row)`
 
 The value loaded from the database for this column.  A `$row`
 argument is required.  It is the associative array of values read from
@@ -361,7 +435,7 @@ Example usage in PHP code:
 
     tablename_COLNAME::value($row)
 
-### column attribute `text_value`
+### column attribute `text_value($row)`
 
 The value of this column formatted in plain text.  A `$row` argument
 is required.  It is the associative array of values read from the
@@ -371,7 +445,7 @@ The default value is `text_format(value($row))`.  Since the default
 `text_format` does not change the value, this function too does not
 change the value by default.
 
-### column attribute: `html_value`
+### column attribute: `html_value($row)`
 
 The value of this column formatted as html.  A `$row` argument
 is required.  It is the associative array of values read from the
@@ -380,13 +454,13 @@ database for the particular record being displayed.
 The default value is `html_format(text_value($row))`.  The default
 `html_format` escapes special html characters.
 
-### column attribute: `text_format`
+### column attribute: `text_format($value)`
 
 Formats a value in plain text.  A `$value` argument is required.  The
 return value of this attribute is a transformation of `$value`.  The
 default is to return `$value` unchanged.
 
-### column attribute: `html_format`
+### column attribute: `html_format($value)`
 
 Formats a value in html.  A `$value` argument is required.  The return
 value of this attribute is a transformation of `$value`.  The default
@@ -524,7 +598,7 @@ The SQL to use in the `where` clause for this view.  The default is empty.
 
 The SQL to use in the `order by` clause of this view.  The default is empty.
 
-### view attribute: `sql`
+### view attribute: `sql($and_where="")`
 
 The SQL statement for this view.  The default combines all the other
 SQL attributes (`select`, `from`, `where`, `order_by`) into a complete
@@ -534,6 +608,9 @@ that specifies additional SQL to use in the `where` clause.
 Example usage in PHP code:
 
     $sql = view_student_directory::sql("LAST_NAME LIKE :SEARCH_STRING");
+    $stmt = $dbh->prepare($sql);
+    $stmt->bindValue(":SEARCH_STRING",$search_string);
+    $stmt->execute();
 
 ### view attribute: `is_table`
 
