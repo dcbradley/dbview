@@ -1,0 +1,13 @@
+require "std1"
+
+table dbview_example1
+
+dbview_example1.NAME
+dbview_example1.COMMENT
+
+view example1
+  table: dbview_example1
+  columns: [
+    dbview_example1.NAME,
+    dbview_example1.COMMENT,
+  ]
