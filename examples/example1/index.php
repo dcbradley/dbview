@@ -1,19 +1,7 @@
-<?php
-
-ini_set('display_errors', 'On');
-
-require_once "../db/db.php";
-
-if( !file_exists(__DIR__ . DIRECTORY_SEPARATOR . "example1_dbview.php") ) {
-  throw new Exception("You must generate example1_dbview.php in " . __DIR__ . " by running the command: ../../dbview example1.dbview example1_dbview.php");
-}
-
-require_once "example1_dbview.php";
-
-?>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<title>DBView Example 1</title>
+  <title>DBView Example 1</title>
 </head>
 <body>
 
@@ -42,6 +30,16 @@ the data in the dbview_example1 table:</p>
 
 <table border='1'>
 <?php
+
+ini_set('display_errors', 'On');
+
+require_once "../db/db.php";
+
+if( !file_exists(__DIR__ . DIRECTORY_SEPARATOR . "example1_dbview.php") ) {
+  throw new Exception("You must generate example1_dbview.php in " . __DIR__ . " by running the command: ../../dbview example1.dbview example1_dbview.php");
+}
+
+require_once "example1_dbview.php";
 
 $dbh = connectDB();
 $sql = view_example1::sql();
