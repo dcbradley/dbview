@@ -74,10 +74,11 @@ class Lex {
       if( file_exists($full_fname . ".dbview") ) return $full_fname . ".dbview";
       if( file_exists($full_fname) ) return $full_fname;
     }
+    return false;
   }
   function include($fname) {
     $full_fname = $this->findIncludeFile($fname);
-    if( !$full_fname ) {
+    if( $full_fname === false ) {
       $this->errMsg("Failed to find $fname");
     }
 
@@ -170,25 +171,24 @@ class Lex {
           $this->nextChar();
         }
       }
-      if( $base == "0" ) {
-        $base = $this->ch;
-        $value .= $this->ch;
-        $this->nextChar();
-        if( $base == "x" ) { # hexidecimal
-          while( preg_match("/^[[:digit:]a-fA-F]/",$this->ch) ) {
-            $value .= $this->ch;
-            $this->nextChar();
-          }
-        } else if( $base == "b" ) { # binary
-          while( preg_match("/^[01]/",$this->ch) ) {
-            $value .= $this->ch;
-            $this->nextChar();
-          }
-        } else { # base 8
-          while( preg_match("/^[0-7]/",$this->ch) ) {
-            $value .= $this->ch;
-            $this->nextChar();
-          }
+      if( $base == "0" && $this->ch == "x" ) { # hexidecimal
+        $this->value .= $this->ch;
+	$this->nextChar();
+        while( preg_match("/^[[:digit:]a-fA-F]/",$this->ch) ) {
+          $value .= $this->ch;
+          $this->nextChar();
+        }
+      } else if( $base == "0" && $this->ch == "b" ) { # binary
+        $this->value .= $this->ch;
+	$this->nextChar();
+        while( preg_match("/^[01]/",$this->ch) ) {
+          $value .= $this->ch;
+          $this->nextChar();
+        }
+      } else if( $base == "0" && preg_match("/^[0-7]/",$this->ch) ) { # base 8
+        while( preg_match("/^[0-7]/",$this->ch) ) {
+          $value .= $this->ch;
+          $this->nextChar();
         }
       } else { # base 10
         while( preg_match("/^[[:digit:].]/",$this->ch) ) {
