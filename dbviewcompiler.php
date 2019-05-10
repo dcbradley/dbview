@@ -55,6 +55,7 @@ class Lex {
   function rewind() {
     rewind($this->F);
     $this->linecount = 0;
+    $this->already_included = array();
     $this->nextChar();
   }
   function findIncludeFile($fname) {
