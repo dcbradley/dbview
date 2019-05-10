@@ -19,9 +19,12 @@ Clone the DBView repository:
 
     git clone https://github.com/dcbradley/dbview.git
 
-Compile a dbview source file to php:
+Compile a DBView example:
 
-    /path/to/dbview/dbview infile.dbview outfile.php
+    cd examples/example1
+    ../../dbview example1.dbview example1_dbview.php
+
+See examples/example1/index.php to run the example.
 
 # DBView Language Overview
 
