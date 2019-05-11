@@ -51,11 +51,7 @@ Objects become PHP classes in the generated code:
     column tablename.colname -->  tablename_colname
     tablename.colname        -->  tablename_colname
 
-Tables and views must have different DBView object names.  If a view
-name conflicts with a table name, simple call the view `view_viewname`
-to avoid conflict.  When a view object name begins with `view_` then
-an extra `view_` is <em>not</em> prepended to form the PHP class name.
-Similarly for tables.
+See [object name conflicts](#object-name-conflicts) for some technical details.
 
 The attributes of an object are specified in an indented block after
 the line declaring the object.  They may be set to
@@ -415,6 +411,21 @@ comment styles are supported:
     /* multi-line comment
        /* containing /*nested*/ comments */
     */
+
+## Object name conflicts
+
+Tables and views must have different DBView object names.  If a view
+name conflicts with a table name, simple call the view `view_viewname`
+to avoid conflict.  When a view object name begins with `view_` then
+an extra `view_` is <em>not</em> prepended to form the PHP class name.
+Similarly for tables.
+
+Example:
+
+    table example
+    view view_example
+      table: example
+      columns: { return table_example::columns(); }
 
 # std1
 
