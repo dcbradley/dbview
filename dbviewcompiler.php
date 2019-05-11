@@ -817,6 +817,10 @@ abstract class DBViewParser {
         $tabledef->attrs = $attrs;
         $tabledef->columns = array();
 
+        if( $tabledef->name == "table" || $tabledef->name == "view" ) {
+          $this->errMsg("Cannot name a {$tabledef->type} the reserved word '{$tabledef->name}'",$tabledef->src_linenum,$tabledef->src_fname);
+        }
+
         if( $gen_code ) {
           $this->genTable($tablename,$tabledef);
         }
