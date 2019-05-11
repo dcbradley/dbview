@@ -126,7 +126,9 @@ Example:
 
 ## Object class references
 
-A value that refers to a column, table, or view uses the following syntax:
+A value that refers to a column, table, or view uses the syntax
+illustrated on the right hand side of the following attribute
+assignments:
 
     student.COLUMN
       other_student_column: OTHER_COLUMN
@@ -136,7 +138,7 @@ A value that refers to a column, table, or view uses the following syntax:
 
 When translated into PHP, the value is replaced by the class that it
 refers to.  For example, the above definitions are equivalent to the
-following:
+following PHP blocks:
 
     student.COLUMN
       other_student_column: { return student_OTHER_COLUMN::class; }
@@ -165,47 +167,74 @@ Example:
 
 ## PHP code blocks
 
-PHP code blocks may be used to define attribute values.  They may also
-appear outside of a DBView object declaration to insert PHP code
-directly into the PHP that is generated from the DBView file.
+A PHP code block is used to insert code directly into the PHP that is
+generated from the DBView file.  This can be done to define attribute
+values that are more complicated than simple constants.  It may also
+be done outside of an object definition to inject supporting code such
+as function or class definitions.
 
 PHP code blocks begin with `{` and end with `}`.  Braces must be
 balanced within the code block, so that the end of the PHP code block
 is correctly detected by the DBView compiler.  The DBView compiler
 does not attempt to parse the PHP code other than to count opening and
-closing braces.  Even braces within comments and strings count.  If the
-PHP code contains unbalanced braces, balance them by using a comment.
+closing braces.  Even braces within comments and strings count.  If
+the PHP code contains unbalanced braces, balance them by using braces
+in a comment.
 
 When used to define an attribute value, the PHP code should return the
 desired value.  The following two attribute definitions are equivalent,
-one using DBView syntax and one using PHP.
+one using a constant and one using a PHP code block.
 
-    attrname: "This is the value."
+    student.EXAMPLE
+      attrname: "This is the value."
 
-    attrname: { return "This is the value."; }
+      attrname: { return "This is the value."; }
 
 All attributes become static member functions in the generated PHP
-code.  If the function requires arguments, the attribute is declared
-in the folowing functional style:
+code, so the above definitions truly are the same.  In both cases,
+the value of the attribute can be accessed in PHP as
+`student_EXAMPLE::attrname()`.
 
-    attrname($arg1,$arg2) { return $arg1 . $arg2; }
+From within another attribute of the same object, the value of the
+attribute can be accessed in PHP as `static::attrname()`.  For examle:
 
-If the attribute has a default that was declared with arguments, it is
-not necessary to define the arguments when overriding it.  In the
-following example, the `html_format` attribute is overridden.  The
-default definition declares an argument with the name `$value`, so the
+    student.EXAMPLE
+      attrname: "This is the value."
+      attrname2: { return "attrname is " . static::attrname(); }
+
+PHP code blocks can also be declared in functional form.  For
+attributes that take no arguments, this is just a choice of style, but
+for attributes that take arguments, it is required.  The following
+example defines an attribute that takes two arguments:
+
+    student.EXAMPLE
+      attrname($arg1,$arg2) { return $arg1 . $arg2; }
+
+If the attribute has a default that was declared with arguments, then
+when overriding the attribute it is not necessary to define the
+arguments explicitly.  In the following example, the `html_format`
+attribute is overridden.  The default definition of `html_format` (not
+shown here) declares an argument with the name `$value`, so the
 following code can refer to that argument without explicitly declaring
 it.
 
-    html_format: { return str_replace(" ","&nbsp;",$value); }
+    student.EXAMPLE
+      html_format: { return str_replace(" ","&nbsp;",$value); }
 
-When used outside of an object declaration, the `php` keyword must
-precede the code block.  The following example ensures that a PHP file
-named `common.php` is loaded so that the functions defined in it may
-be used:
+That is equivalent to the following statement with an explicit
+argument definition:
+
+    student.EXAMPLE
+      html_format($value) { return str_replace(" ","&nbsp;",$value); }
+
+A PHP code block can also appear outside of an object declaration.  In
+this case, the `php` keyword must precede the code block.  The
+following example uses a PHP code block to define a function.
 
     php {
-      require_once "common.php";
+      function formatSemester($term_id) {
+        # code here to convert $term_id to the form "Fall 2020"
+      }
     }
 
 ### eval
@@ -281,7 +310,7 @@ the evaluation phase.
 
 ## require
 
-The require keyword is used to insert code from another DBView file.
+The require statement is used to insert code from another DBView file.
 
 Most DBView projects should require `std1`.  This defines the
 `std1` default attributes.  Example:
@@ -293,6 +322,18 @@ specified.
 
 Files are searched for in the same directory as the file that requires
 them and also in the dbview compiler directory.
+
+When the same file is required more than once, it is only inserted the
+first time.
+
+## require_php
+
+The `require_php` statement is used to insert PHP code from another
+file.
+
+If the file is found in the dbview compiler directory, it is read from
+there.  Otherwise, it will be searched for in the usual way that PHP
+finds required files.
 
 When the same file is required more than once, it is only inserted the
 first time.
