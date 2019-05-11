@@ -564,7 +564,7 @@ class ClassExpr extends Expr {
     if( !$this->rhs ) {
       foreach( $tables as $table => $tabledef ) {
         if( $table == $this->lhs ) {
-          return $tabledef->type . "_" . $table . "::class";
+          return $tabledef->classname . "::class";
         }
       }
       if( $default_table ) {
@@ -582,6 +582,8 @@ class ObjectDef {
   public $classname; # php classname (e.g. tablename_colname)
   public $attrs;
   public $columns;
+  public $src_linenum;
+  public $src_fname;
 }
 
 class Attribute {
@@ -774,9 +776,15 @@ abstract class DBViewParser {
       }
       if( $def_type == "table" || $def_type == "view" ) {
         $tabledef = new ObjectDef;
+        $tabledef->src_fname = $this->lex->fname;
+        $tabledef->src_linenum = $this->lex->linecount;
         $tabledef->name = $tablename;
         $tabledef->type = $def_type;
-        $tabledef->classname = $def_type . "_" . $tablename;
+        $prefix = $tabledef->type . "_";
+        if( strncmp($tabledef->name,$prefix,strlen($prefix))==0 ) {
+          $prefix = "";
+        }
+        $tabledef->classname = $prefix . $tablename;
         $tabledef->attrs = $attrs;
         $tabledef->columns = array();
 
@@ -903,6 +911,14 @@ class DBViewGen extends DBViewParser  {
     if( strchr($table,"*") !== false ) {
       $this->defaults[] = array($tabledef->type,$table,$tabledef->attrs);
       return;
+    }
+    if( array_key_exists($table,$this->tables) ) {
+      $conflict = $this->tables[$table];
+      $suggestion = "";
+      if( ($tabledef->type == "view" || $conflict->type == "view") && $tabledef->type != $conflict->type ) {
+        $suggestion = "; the view could be named view_{$table} to avoid the conflict";
+      }
+      $this->errMsg("declaration of {$tabledef->type} $table conflicts with earlier declaration of a {$conflict->type} by the same name{$suggestion}",$tabledef->src_linenum,$tabledef->src_fname);
     }
     $this->tables[$table] = $tabledef;
   }

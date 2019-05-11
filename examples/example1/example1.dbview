@@ -1,13 +1,13 @@
 require "std1"
 
-table dbview_example1
+table example1
 
-dbview_example1.NAME
-dbview_example1.COMMENTS
+example1.NAME
+example1.COMMENTS
 
-view example1
-  table: dbview_example1
+view view_example1
+  table: example1
   columns: [
-    dbview_example1.NAME,
-    dbview_example1.COMMENTS,
+    example1.NAME,
+    example1.COMMENTS,
   ]

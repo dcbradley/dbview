@@ -28,7 +28,6 @@ to remain fairly generic in tructure.</p>
 <p>Once the above has been done, a table will appear below containing
 the data in the dbview_example1 table:</p>
 
-<table border='1'>
 <?php
 
 ini_set('display_errors', 'On');
@@ -43,9 +42,9 @@ require_once "example1_dbview.php";
 
 $dbh = connectDB();
 $sql = view_example1::sql();
-$stmt = $dbh->prepare($sql);
-$stmt->execute();
+$stmt = $dbh->query($sql);
 
+echo "<table border='1'>\n";
 echo "<tr>";
 $columns = view_example1::columns();
 foreach( $columns as $col ) {
