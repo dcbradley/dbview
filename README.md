@@ -261,9 +261,9 @@ In the following example, `combined1` and `combined2` are equivalent:
 ## @compiletime
 
 The @compiletime keyword indicates that a statement should only
-generate PHP code at compile-time.  This is useful if the value of the
-attribute is used at compile-time for evaluating other attributes but
-is not needed at runtime.
+generate PHP code at compile-time.  This is useful if the code is used
+at compile-time for evaluating other attributes but is not needed at
+runtime.
 
 In the following example, the `val1` attribute is only defined at
 compile-time and is used when evaluating `val2`:
@@ -271,6 +271,13 @@ compile-time and is used when evaluating `val2`:
     student.EXAMPLE
       @compiletime val1: "One"
       val2: eval { return static::val1() . " Two"; }
+
+## @runtime
+
+The @runtime keyword indicates that a statement should only generate
+PHP code at runtime.  This could be used to insert code that generates
+output without having it generate the output at compile-time during
+the evaluation phase.
 
 ## require
 

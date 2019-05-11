@@ -624,7 +624,6 @@ abstract class DBViewParser {
     $lex = $this->lex;
     $token = $lex->nextToken();
     while( $token->type != EOF_TOK ) {
-      $at_compiletime = false;
       if( $token->type == NEWLINE_TOK ) {
         $token = $lex->nextToken();
         continue;
@@ -638,14 +637,27 @@ abstract class DBViewParser {
         if( $token->type == EOF_TOK ) continue;
         $this->errMsg("expecting object definition");
       }
+      $gen_code = true;
       if( $token->type == AT_TOK ) {
+        $at_compiletime = false;
+        $at_runtime = false;
         $token = $lex->nextToken();
-        if( $token->type != NAME_TOK || $token->value != "compiletime" ) {
-          $this->errMsg("expecting compiletime after @");
+        if( $token->type == NAME_TOK && $token->value == "compiletime" ) {
+          $token = $lex->nextToken();
+          $at_compiletime = true;
         }
-        $token = $lex->nextToken();
-        $at_compiletime = true;
+        else if( $token->type == NAME_TOK && $token->value == "runtime" ) {
+          $token = $lex->nextToken();
+          $at_runtime = true;
+        }
+        else {
+          $this->errMsg("expecting compiletime or runtime after @");
+        }
+        $gen_code = (!$at_compiletime && !$at_runtime) ||
+                    ($at_compiletime && !$this->finalCodeGenPhase()) ||
+                    ($at_runtime && $this->finalCodeGenPhase());
       }
+
       if( $token->type != NAME_TOK ) {
         $this->errMsg("expecting definition");
       }
@@ -654,7 +666,7 @@ abstract class DBViewParser {
         if( $token->type != CODE_TOK ) {
           $this->errMsg("expecting php code");
         }
-        if( !$at_compiletime || !$this->finalCodeGenPhase() ) {
+        if( $gen_code ) {
           $this->genPHP($token->value);
         }
         $token = $lex->nextToken();
@@ -670,7 +682,7 @@ abstract class DBViewParser {
         if( $token->type != NEWLINE_TOK ) {
           $this->errMsg("expecting new line");
         }
-        if( !$at_compiletime || !$this->finalCodeGenPhase() ) {
+        if( $gen_code ) {
           $this->genIncludePHP($fname);
         }
         $token = $lex->nextToken();
@@ -686,7 +698,7 @@ abstract class DBViewParser {
         if( $token->type != NEWLINE_TOK ) {
           $this->errMsg("expecting new line");
         }
-        if( !$at_compiletime || !$this->finalCodeGenPhase() ) {
+        if( $gen_code ) {
           $lex->include($fname);
         }
         $token = $lex->nextToken();
@@ -720,8 +732,6 @@ abstract class DBViewParser {
       $token = $lex->nextToken();
       $attrs = array();
       while( $token->type == INDENT_TOK || $token->type == NEWLINE_TOK ) {
-        $attr_at_compiletime = false;
-
         if( $token->type == NEWLINE_TOK ) {
           $token = $lex->nextToken();
           continue;
@@ -731,13 +741,28 @@ abstract class DBViewParser {
           $token = $lex->nextToken();
           continue;
         }
+        $gen_attr = true;
         if( $token->type == AT_TOK ) {
+          $at_compiletime = false;
+          $at_runtime = false;
           $token = $lex->nextToken();
-          if( $token->type != NAME_TOK || $token->value != "compiletime" ) {
-            $this->errMsg("expecting compiletime after @");
+          if( $token->type == NAME_TOK && $token->value == "compiletime" ) {
+            $token = $lex->nextToken();
+            $at_compiletime = true;
           }
-          $token = $lex->nextToken();
-          $attr_at_compiletime = true;
+          else if( $token->type == NAME_TOK && $token->value == "runtime" ) {
+            $token = $lex->nextToken();
+            $at_runtime = true;
+          }
+          else {
+            $this->errMsg("expecting compiletime or runtime after @");
+          }
+          $gen_attr = (!$at_compiletime && !$at_runtime) ||
+                      ($at_compiletime && !$this->finalCodeGenPhase()) ||
+                      ($at_runtime && $this->finalCodeGenPhase());
+        }
+        if( $token->type == EOF_TOK ) {
+          continue;
         }
         if( $token->type != NAME_TOK ) {
           $this->errMsg("expecting attribute name");
@@ -764,7 +789,7 @@ abstract class DBViewParser {
           $token = $lex->nextToken();
         }
         $attr->value = $this->parseExpr();
-        if( !$attr_at_compiletime || !$this->finalCodeGenPhase() ) {
+        if( $gen_attr ) {
           $attrs[$attr->name] = $attr;
         }
         $token = $lex->curtoken;
@@ -788,11 +813,11 @@ abstract class DBViewParser {
         $tabledef->attrs = $attrs;
         $tabledef->columns = array();
 
-        if( !$at_compiletime || !$this->finalCodeGenPhase() ) {
+        if( $gen_code ) {
           $this->genTable($tablename,$tabledef);
         }
       } else {
-        if( !$at_compiletime || !$this->finalCodeGenPhase() ) {
+        if( $gen_code ) {
           $this->genColumn($tablename,$colname,$attrs);
         }
       }
