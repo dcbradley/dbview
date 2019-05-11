@@ -807,6 +807,10 @@ abstract class DBViewParser {
         $tabledef->type = $def_type;
         $prefix = $tabledef->type . "_";
         if( strncmp($tabledef->name,$prefix,strlen($prefix))==0 ) {
+          # Do not prepend the prefix if it is already in the object name.
+          # This allows a view to be called view_tablename to avoid a
+          # name conflict with tablename, without the PHP class ending up
+          # with the ugly name view_view_tablename.
           $prefix = "";
         }
         $tabledef->classname = $prefix . $tablename;

@@ -51,8 +51,11 @@ Objects become PHP classes in the generated code:
     column tablename.colname -->  tablename_colname
     tablename.colname        -->  tablename_colname
 
-If the view name begins with `view_` then an extra `view_` is not
-prepended to form the PHP class name.  Similarly for tables.
+Tables and views must have different DBView object names.  If a view
+name conflicts with a table name, simple call the view `view_viewname`
+to avoid conflict.  When a view object name begins with `view_` then
+an extra `view_` is <em>not</em> prepended to form the PHP class name.
+Similarly for tables.
 
 The attributes of an object are specified in an indented block after
 the line declaring the object.  They may be set to
