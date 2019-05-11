@@ -1038,9 +1038,9 @@ class DBViewGen extends DBViewParser  {
   }
 
   function genIncludePHP($fname) {
-    $in_this_dir = __DIR__ . DIRECTORY_SEPARATOR . $fname;
-    if( file_exists($in_this_dir) ) {
-      $this->genPHP("require_once '" . $in_this_dir . "';");
+    $in_compiler_dir = __DIR__ . DIRECTORY_SEPARATOR . $fname;
+    if( file_exists($in_compiler_dir) ) {
+      $this->genPHP("require_once '" . $in_compiler_dir . "';");
     }
     else {
       $this->genPHP("require_once '" . $fname . "';");
