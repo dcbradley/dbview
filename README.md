@@ -244,14 +244,14 @@ work once at compile-time rather than every time a web page is loaded.
 This will only work for values that do not depend on runtime data.
 
 The following example uses `eval` to generate a list of columns from
-the `student` and `student_qual` tables.  Only columns having the
+the `student` and `student_hr` tables.  Only columns having the
 attribute `in_csv` set to a true value (e.g. non-zero) are included.
 The columns are sorted by the value of their `in_csv` attribute.  The
 PHP functions `filterSortCols()` and `getCols()` that are used in this
 example are part of the DBView standard library.
 
     view csv
-      tables: [ student, student_qual ]
+      tables: [ student, student_hr ]
       columns: eval { return filterSortCols(getCols(static::tables()),"in_csv"); }
 
 ## Macros
@@ -306,6 +306,16 @@ The @runtime keyword indicates that a statement should only generate
 PHP code at runtime.  This could be used to insert code that generates
 output without having it generate the output at compile-time during
 the evaluation phase.
+
+## @undefined
+
+The @undefined keyword is used to define an error message to be
+displayed when an attribute is undefined.
+
+Example:
+
+  view: *
+    @undefined title: "title is undefined"
 
 ## require
 
@@ -396,6 +406,9 @@ Some views might not require all possible tables to be joined.  Only
 the required tables will be joined when creating the SQL for a
 particular view.
 
+In the generated PHP code, the static member function for a join is
+named `join_tablename`.
+
 ## comments
 
 Comments are ignored by the DBView compiler.  The following
@@ -415,10 +428,10 @@ comment styles are supported:
 ## Object name conflicts
 
 Tables and views must have different DBView object names.  If a view
-name conflicts with a table name, simple call the view `view_viewname`
-to avoid conflict.  When a view object name begins with `view_` then
-an extra `view_` is <em>not</em> prepended to form the PHP class name.
-Similarly for tables.
+name conflicts with a table name, one way to avoid the conflict is to
+call view `view_viewname`.  When a view object name begins with
+`view_` then an extra `view_` is <em>not</em> prepended to form the
+PHP class name.  Similarly for tables.
 
 Example:
 
@@ -430,13 +443,7 @@ Example:
 # std1
 
 The DBView `std1` library defines a set of default attributes and
-provides a set of standard PHP functions.  The reason it is called
-`std1` rather than just `std` is in case future versions are created
-that diverge enough from `std1` to warrant a different version number
-or name.  It is intended that code designed for `std1` would still
-continue to work in the future, because it explicitly uses a specific
-version of the standard library, which would continue to exist
-alongside other versions of the standard.
+provides a set of standard PHP functions.
 
 The default attributes are described in the following sections.
 
@@ -577,7 +584,8 @@ the `<<table>>` macro.
 ### table attribute: `columns`
 
 An array of columns defined for this table.  The default value is
-provided by the `<<columns>>` macro.
+provided by the `<<columns>>` macro.  The columns are listed in the
+order in which they were defined.
 
 ### table attribute: `from`
 
@@ -614,9 +622,9 @@ The array of columns visible in this view.  Additional columns may be
 automatically included in `hidden_columns` due to some columns in this
 array requiring other columns that are not included in this array.
 
-The default value is to include the columns that are defined with this
-view as their table.  Usually, the default is overridden.  It is rare to
-define columns with a view as their table.
+Views are just a special type of table object, so, like tables, views
+can have their own columns.  By default, the `columns` attribute lists
+only the columns belonging to the view.
 
 Example usage:
 
@@ -683,3 +691,62 @@ Example usage in PHP code:
 ### view attribute: `is_table`
 
 False.  This is only defined at compile-time.
+
+## std1 PHP functions
+
+DBView std1 defines PHP functions.  These are described below.
+
+### filterSortCols
+
+    filterSortCols($columns,$filtersortfunc)
+
+Arguments:
+
+* `$columns` - an array of column classes.
+* `$filtersortfunc` - the name of a column member function that returns a false value or a sort value
+
+Returns an array of columns for which each column's
+`$filtersortfunc()` is a true value (e.g. not 0 or false or null).
+The columns are sorted from least to greatest value returned by
+`$filtersortfunc()`.  The order of the columns is preserved for
+columns having the same sort value.
+
+Example usage:
+
+    view csv
+      tables: [ student, student_hr ]
+      columns: eval { return filterSortCols(getCols(static::tables()),"in_csv"); }
+
+    column student*.*
+      in_csv: 1
+
+    student_hr.NAME
+      in_csv: 0.5  # put this column first
+
+    student_hr.SSN
+      in_csv: 0    # do not include SSN in csv
+
+### getCols
+
+    getCols($tables)
+
+Arguments:
+
+* `$tables` - an array of tables and/or views
+
+Returns an array of columns that contains one entry for each column in
+each of the tables.  The columns for each table are listed in the
+order in which the tables are listed in the `$tables` argument.
+Within the block of columns for each table, the columns are listed in
+the order in which they appear in the `columns` attribute.
+
+### defaultTextColname
+
+    defaultTextColname($name)
+
+Arguments:
+
+* $name - the name of the DBView object representing the column
+
+Returns a string containing `$name` with underscores replaced by
+spaces and with only the first letter of each word capitalized.
