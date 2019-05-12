@@ -2,8 +2,9 @@
 @compiletime require_php 'dbview_stdlib1.php'
 
 column *.*
-  name:      <<name>>
-  table:     <<table>>
+  name:           <<name>>
+  table:          <<table>>
+  dbview_type:    "column"
   select:         eval { return static::table()::name() . "." . static::name(); }
   text_colname:   eval { return defaultTextColname(static::name()); }
   html_rowname:   eval { return htmlspecialchars(static::text_colname()); }
@@ -14,21 +15,27 @@ column *.*
   text_format($value)  { return $value; }
   html_format($value)  { return htmlspecialchars($value); }
   @compiletime requires:  { return null; }
-  @compiletime is_table() { return false; }
 
 table *
-  name:      <<name>>
-  table:     <<table>>
-  columns:   <<columns>>
+  name:        <<name>>
+  table:       <<table>>
+  dbview_type: "table"
+  columns:     <<columns>>
   from:                   { return <<name()>>; }
-  @compiletime is_table() { return true; }
 
 view *
-  name:      <<name>>
-  columns:   <<columns>>
+  name:           <<name>>
+  dbview_type:    "view"
+  columns:        <<columns>>
   hidden_columns: eval { return getColRequirements(static::columns(),static::requires()); }
+  @undefined table:    { return "the primary table for view '" . <<name>> . "' must be defined by setting its table attribute"; }
   select:         eval { return getSelectSQL(static::columns(),static::hidden_columns()); }
-  from:           eval { return getFromSQL(static::table(),static::columns(),static::hidden_columns()); }
+  from:           eval {
+    if( static::table() == static::class ) {
+      return <<name()>>;
+    }
+    return getFromSQL(static::table(),static::columns(),static::hidden_columns());
+  }
   where:               { return null; }
   order_by:            { return null; }
   sql($and_where="")   {
@@ -46,4 +53,3 @@ view *
     return $sql;
   }
   @compiletime requires:  { return null; }
-  @compiletime is_table() { return false; }

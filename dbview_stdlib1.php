@@ -107,7 +107,7 @@ function getSelectSQL($columns,$hidden_columns) {
     throw new Exception("Expecting second argument to filterSortCols() to be an array but got " . gettype($hidden_columns));
   }
   foreach( array_merge($columns,$hidden_columns) as $col ) {
-    if( $col::is_table() ) continue; # tables can be included via "requires"
+    if( $col::dbview_type() != "column" ) continue; # tables/views can be included via "requires"
     $select = $col::select();
     if( !$select ) continue;
     if( $sql ) $sql .= ",";
