@@ -314,8 +314,8 @@ displayed when an attribute is undefined.
 
 Example:
 
-  view: *
-    @undefined title: "title is undefined"
+    view: *
+      @undefined title: "title is undefined"
 
 ## require
 
@@ -560,9 +560,9 @@ Example usage:
         EXPECTED_MINOR1_DESCR,
       ]
 
-### column attribute: `is_table`
+### column attribute: `dbview_type`
 
-False.  This is only defined at compile-time.
+`"column"`
 
 ## table
 
@@ -597,9 +597,9 @@ Example usage:
     table grad
       from: "graduate_student grad"
 
-### table attribute: `is_table`
+### table attribute: `dbview_type`
 
-True.  This is only defined at compile-time.
+`"table"`
 
 ## view
 
@@ -688,9 +688,9 @@ Example usage in PHP code:
     $stmt->bindValue(":SEARCH_STRING",$search_string);
     $stmt->execute();
 
-### view attribute: `is_table`
+### view attribute: `dbview_type`
 
-False.  This is only defined at compile-time.
+`"view"`
 
 ## std1 PHP functions
 
