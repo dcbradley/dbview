@@ -36,7 +36,7 @@ class Token {
 }
 
 class Lex {
-  public $linecount = 0;
+  public $linenum = 1;
   public $fname = null;
   public $F = null;
   public $curtoken = null;
@@ -54,7 +54,7 @@ class Lex {
   }
   function rewind() {
     rewind($this->F);
-    $this->linecount = 0;
+    $this->linenum = 1;
     $this->already_included = array();
     $this->nextChar();
   }
@@ -101,9 +101,9 @@ class Lex {
   }
   function pushfilestack() {
     if( $this->F ) {
-      $this->filestack[] = array($this->linecount,$this->fname,$this->F,$this->curtoken,$this->ch,$this->at_newline);
+      $this->filestack[] = array($this->linenum,$this->fname,$this->F,$this->curtoken,$this->ch,$this->at_newline);
     }
-    $this->linecount = 0;
+    $this->linenum = 0;
     $this->fname = null;
     $this->F = null;
     $this->curtoken = null;
@@ -119,7 +119,7 @@ class Lex {
 
     fclose($this->F);
 
-    $this->linecount = $state[0];
+    $this->linenum = $state[0];
     $this->fname = $state[1];
     $this->F = $state[2];
     $this->curtoken = $state[3];
@@ -129,7 +129,7 @@ class Lex {
   }
   function nextChar() {
     if( $this->ch == "\n" || $this->ch === null ) {
-      $this->linecount += 1;
+      $this->linenum += 1;
       $this->at_newline = true;
     } else {
       $this->at_newline = false;
@@ -283,7 +283,7 @@ class Lex {
     }
 
     if( $this->ch == '"' || $this->ch == "'" ) {
-      $begin_line = $this->linecount;
+      $begin_line = $this->linenum;
       $quote = $this->ch;
       $this->nextChar();
       $str = "";
@@ -304,7 +304,7 @@ class Lex {
     }
 
     if( $this->ch == '{' ) {
-      $begin_line = $this->linecount;
+      $begin_line = $this->linenum;
       $level = 0;
       $code = "{";
       $this->nextChar();
@@ -324,7 +324,7 @@ class Lex {
     }
 
     if( $this->ch == '(' ) {
-      $begin_line = $this->linecount;
+      $begin_line = $this->linenum;
       $level = 0;
       $code = "(";
       $this->nextChar();
@@ -365,7 +365,7 @@ class Lex {
         return $this->nextToken();
       }
       else if( $this->ch == "*" ) {
-        $begin_line = $this->linecount;
+        $begin_line = $this->linenum;
         $this->nextChar();
         $level = 1;
         while( !$this->eof() ) {
@@ -408,7 +408,7 @@ class Lex {
     $this->errMsg("unexpected character");
   }
   function errMsg($msg,$line_num=null,$fname=null) {
-    if( $line_num === null ) $line_num = $this->linecount;
+    if( $line_num === null ) $line_num = $this->linenum;
     if( $fname === null ) $fname = $this->fname;
     echo "{$fname}:{$line_num}: $msg\n";
     exit(1);
@@ -591,6 +591,7 @@ class Attribute {
   public $args;
   public $value;
   public $eval = false;
+  public $at_undefined = false;
 }
 
 abstract class DBViewParser {
@@ -637,6 +638,8 @@ abstract class DBViewParser {
         if( $token->type == EOF_TOK ) continue;
         $this->errMsg("expecting object definition");
       }
+      $def_src_linenum = $this->lex->linenum;
+      $def_src_fname = $this->lex->fname;
       $gen_code = true;
       if( $token->type == AT_TOK ) {
         $at_compiletime = false;
@@ -715,9 +718,9 @@ abstract class DBViewParser {
       $tablename = $token->value;
       $colname = "";
       $token = $lex->nextToken();
-      if( $token->type != NEWLINE_TOK ) {
+      if( $def_type == "column" ) {
         if( $token->type != DOT_TOK ) {
-          $this->errMsg("expected dot after table name $tablename");
+          $this->errMsg("malformed object definition '$tablename'");
         }
         $token = $lex->nextToken();
         if( $token->type != NAME_TOK && $token->type != GLOB_TOK ) {
@@ -741,8 +744,12 @@ abstract class DBViewParser {
           $token = $lex->nextToken();
           continue;
         }
+        if( $token->type == EOF_TOK ) {
+          continue;
+        }
         $gen_attr = true;
-        if( $token->type == AT_TOK ) {
+        $at_undefined = false;
+        while( $token->type == AT_TOK ) {
           $at_compiletime = false;
           $at_runtime = false;
           $token = $lex->nextToken();
@@ -754,6 +761,10 @@ abstract class DBViewParser {
             $token = $lex->nextToken();
             $at_runtime = true;
           }
+          else if( $token->type == NAME_TOK && $token->value == "undefined" ) {
+            $token = $lex->nextToken();
+            $at_undefined = true;
+          }
           else {
             $this->errMsg("expecting compiletime or runtime after @");
           }
@@ -761,14 +772,13 @@ abstract class DBViewParser {
                       ($at_compiletime && !$this->finalCodeGenPhase()) ||
                       ($at_runtime && $this->finalCodeGenPhase());
         }
-        if( $token->type == EOF_TOK ) {
-          continue;
-        }
+
         if( $token->type != NAME_TOK ) {
           $this->errMsg("expecting attribute name");
         }
         $attr = new Attribute;
         $attr->name = $token->value;
+        $attr->at_undefined = $at_undefined;
         $token = $lex->nextToken();
         if( $attr->name == "join" ) {
           if( $token->type != NAME_TOK ) {
@@ -799,34 +809,39 @@ abstract class DBViewParser {
           $this->errMsg("expecting newline");
         }
       }
+
+      $objdef = new ObjectDef;
+      $objdef->type = $def_type;
+      $objdef->src_fname = $def_src_fname;
+      $objdef->src_linenum = $def_src_linenum;
+      $objdef->attrs = $attrs;
+      $objdef->columns = array();
+
       if( $def_type == "table" || $def_type == "view" ) {
-        $tabledef = new ObjectDef;
-        $tabledef->src_fname = $this->lex->fname;
-        $tabledef->src_linenum = $this->lex->linecount;
-        $tabledef->name = $tablename;
-        $tabledef->type = $def_type;
-        $prefix = $tabledef->type . "_";
-        if( strncmp($tabledef->name,$prefix,strlen($prefix))==0 ) {
+        $objdef->name = $tablename;
+        $prefix = $objdef->type . "_";
+        if( strncmp($objdef->name,$prefix,strlen($prefix))==0 ) {
           # Do not prepend the prefix if it is already in the object name.
           # This allows a view to be called view_tablename to avoid a
           # name conflict with tablename, without the PHP class ending up
           # with the ugly name view_view_tablename.
           $prefix = "";
         }
-        $tabledef->classname = $prefix . $tablename;
-        $tabledef->attrs = $attrs;
-        $tabledef->columns = array();
+        $objdef->classname = $prefix . $tablename;
 
-        if( $tabledef->name == "table" || $tabledef->name == "view" ) {
-          $this->errMsg("Cannot name a {$tabledef->type} the reserved word '{$tabledef->name}'",$tabledef->src_linenum,$tabledef->src_fname);
+        if( $objdef->name == "table" || $objdef->name == "view" ) {
+          $this->errMsg("Cannot name a {$objdef->type} the reserved word '{$objdef->name}'",$objdef->src_linenum,$objdef->src_fname);
         }
 
         if( $gen_code ) {
-          $this->genTable($tablename,$tabledef);
+          $this->genTable($tablename,$objdef);
         }
       } else {
+        $objdef->name = $colname;
+        $objdef->classname = $tablename . "_" . $colname;
+
         if( $gen_code ) {
-          $this->genColumn($tablename,$colname,$attrs);
+          $this->genColumn($tablename,$colname,$objdef);
         }
       }
     }
@@ -834,12 +849,12 @@ abstract class DBViewParser {
   function parseExpr() {
     $token = $this->lex->curtoken;
     if( $token->type == STRING_TOK || $token->type == NUM_TOK ) {
-      $expr = new LiteralExpr($token->value,$this->lex->linecount,$this->lex->fname);
+      $expr = new LiteralExpr($token->value,$this->lex->linenum,$this->lex->fname);
       $this->lex->nextToken();
       return $expr;
     }
     if( $token->type == CODE_TOK ) {
-      $expr = new CodeExpr($token->value,$this->lex->linecount,$this->lex->fname);
+      $expr = new CodeExpr($token->value,$this->lex->linenum,$this->lex->fname);
       $this->lex->nextToken();
       return $expr;
     }
@@ -855,15 +870,15 @@ abstract class DBViewParser {
         $rhs = $token->value;
         $this->lex->nextToken();
       }
-      return new ClassExpr($lhs,$rhs,$this->lex->linecount,$this->lex->fname);
+      return new ClassExpr($lhs,$rhs,$this->lex->linenum,$this->lex->fname);
     }
     if( $token->type == MACRO_TOK ) {
-      $expr = new MacroExpr($token->value,$this->lex->linecount,$this->lex->fname);
+      $expr = new MacroExpr($token->value,$this->lex->linenum,$this->lex->fname);
       $this->lex->nextToken();
       return $expr;
     }
     if( $token->type == MACRO_FUNC_TOK ) {
-      $expr = new MacroFuncExpr($token->value,$this->lex->linecount,$this->lex->fname);
+      $expr = new MacroFuncExpr($token->value,$this->lex->linenum,$this->lex->fname);
       $this->lex->nextToken();
       return $expr;
     }
@@ -888,7 +903,7 @@ abstract class DBViewParser {
         $this->lex->errMsg("expecting ]");
       }
       $this->lex->nextToken();
-      return new ArrayExpr($values,$this->lex->linecount,$this->lex->fname);
+      return new ArrayExpr($values,$this->lex->linenum,$this->lex->fname);
     }
     $this->lex->errMsg("expecting a value");
   }
@@ -900,9 +915,11 @@ class DBViewGen extends DBViewParser  {
   private $defaults;
   private $pass;
   private $tables;
+  private $undefined_attrs;
 
   function __construct($lex,$outfname) {
     parent::__construct($lex);
+    $this->undefined_attrs = array();
     $this->clear();
     $this->outfname = $outfname;
   }
@@ -925,6 +942,8 @@ class DBViewGen extends DBViewParser  {
     # load the code that we just generated, so it can be called in pass 2 for code blocks flagged with "eval"
     require $pass1_fname;
 
+    $this->checkUndefinedAttrs();
+
     $pass2_fname = $this->outfname . "2";
     $this->OUT = fopen($pass2_fname,"w");
     fwrite($this->OUT,$header);
@@ -937,6 +956,23 @@ class DBViewGen extends DBViewParser  {
 
     rename($pass2_fname,$this->outfname);
     unlink($pass1_fname);
+  }
+
+  function checkUndefinedAttrs() {
+    foreach( $this->undefined_attrs as $u ) {
+      $attr = $u[0];
+      $objdef = $u[1];
+
+      $attrname = $attr->name;
+      $classname = $objdef->classname;
+      $errmsg = $classname::$attrname();
+
+      if( !is_string($errmsg) || !$errmsg ) {
+        $errmsg = "required attriute '$attrname' is undefined";
+      }
+
+      $this->errMsg($errmsg,$objdef->src_linenum,$objdef->src_fname);
+    }
   }
 
   # this function is called by DBViewParser when it has parsed a table definition
@@ -979,7 +1015,7 @@ class DBViewGen extends DBViewParser  {
   function registerColumn($tablename,$colname,$class_name) {
     foreach( $this->tables as $table => $tabledef ) {
       if( $table == $tablename ) {
-        $tabledef->columns[$class_name] = new ClassExpr($tablename,$colname,$this->lex->linecount,$this->lex->fname);
+        $tabledef->columns[$class_name] = new ClassExpr($tablename,$colname,$this->lex->linenum,$this->lex->fname);
       }
     }
   }
@@ -995,6 +1031,7 @@ class DBViewGen extends DBViewParser  {
     $class_parts = explode(".",$classname);
     for($i=0;$i<count($pattern_parts);$i++) {
       $p = $pattern_parts[$i];
+      if( $i >= count($class_parts) ) return false;
       $c = $class_parts[$i];
       if( !$this->globmatch($p,$c) ) return false;
     }
@@ -1056,37 +1093,34 @@ class DBViewGen extends DBViewParser  {
   }
 
   # this function is called by DBViewParser when it has parsed a column definition
-  function genColumn($table,$colname,$attrs) {
+  function genColumn($table,$colname,$objdef) {
     if( strchr($table,"*") !== false || strchr($colname,"*") !== false ) {
-      $this->defaults[] = array("column",$table . "." . $colname,$attrs);
+      $this->defaults[] = array("column",$table . "." . $colname,$objdef->attrs);
       return;
     }
 
-    $classname = $table;
-    if( $table && $colname ) {
-      $classname .= "_" . $colname;
+    if( !array_key_exists($table,$this->tables) ) {
+      $this->errMsg("No table named '$table' has been defined.",$objdef->src_linenum,$objdef->src_fname);
     }
 
-    $this->registerColumn($table,$colname,$classname);
+    $this->registerColumn($table,$colname,$objdef->classname);
 
-    fwrite($this->OUT,"class {$classname} {\n");
+    fwrite($this->OUT,"class {$objdef->classname} {\n");
 
-    $objectdef = new ObjectDef;
-    $objectdef->name = $colname;
-    $objectdef->classname = $classname;
-    $objectdef->type = "column";
-    $objectdef->attrs = $attrs;
-
-    $default_args = $this->genDefaultAttrs($objectdef,$table,$colname,$attrs,$this->defaults);
+    $default_args = $this->genDefaultAttrs($objdef,$table,$colname,$objdef->attrs,$this->defaults);
     fwrite($this->OUT,"\n");
-    foreach( $attrs as $attrname => $attr ) {
+    foreach( $objdef->attrs as $attrname => $attr ) {
       $this_default_args = array_key_exists($attrname,$default_args) ? $default_args[$attrname] : "";
-      $this->genAttr($attr,$this_default_args,$objectdef,$table);
+      $this->genAttr($attr,$this_default_args,$objdef,$table);
     }
     fwrite($this->OUT,"}\n");
   }
 
   function genAttr($attr,$default_args,$objectdef,$default_table) {
+    if( $attr->at_undefined ) {
+      $this->undefined_attrs[] = array($attr,$objectdef);
+    }
+
     fwrite($this->OUT,"  static function {$attr->name}");
     if( $attr->args ) {
       fwrite($this->OUT,$attr->args . " ");
