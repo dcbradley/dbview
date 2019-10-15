@@ -30,6 +30,21 @@ function getColRequirements($columns,$requires=null) {
       }
     }
   }
+  # add requirements of the hidden columns too
+  foreach( $req as $col ) {
+    if( $col::dbview_type() == "table" ) continue;
+    $r = $col::requires();
+    if( $r ) {
+      if( !is_array($r) ) {
+        throw new Exception("Expecting {$col}::requires() to return an array but got " . gettype($r));
+      }
+      foreach( $r as $rcol ) {
+        if( !in_array($rcol,$columns) && !in_array($rcol,$req) ) {
+          $req[] = $rcol;
+        }
+      }
+    }
+  }
   return $req;
 }
 
