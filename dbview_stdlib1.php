@@ -1,5 +1,7 @@
 <?php
 
+class EvalAtRuntime extends Exception {}
+
 function defaultTextColname($name) {
   $col = str_replace("_"," ",$name);
   $col = ucwords(strtolower($col));

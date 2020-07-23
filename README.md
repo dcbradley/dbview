@@ -254,6 +254,9 @@ example are part of the DBView standard library.
       tables: [ student, student_hr ]
       columns: eval { return filterSortCols(getCols(static::tables()),"in_csv"); }
 
+If an evaluated attribute throws the exception EvalAtRuntime, the
+evaluation will be delayed until runtime.
+
 ## Macros
 
 Macros are inserted using the syntax `<<macroname>>` or

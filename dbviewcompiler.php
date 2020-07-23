@@ -1134,11 +1134,15 @@ class DBViewGen extends DBViewParser  {
 
     $value = $attr->value;
     if( $this->finalCodeGenPhase() && $attr->eval ) {
-      $attrname = $attr->name;
-      $classname = $objectdef->classname;
-      $val = $classname::$attrname();
-      $val = getPHPCode($val);
-      $value = new LiteralExpr($val,$attr->value->getSrcLine(),$attr->value->getSrcFile());
+      try {
+        $attrname = $attr->name;
+        $classname = $objectdef->classname;
+        $val = $classname::$attrname();
+        $val = getPHPCode($val);
+        $value = new LiteralExpr($val,$attr->value->getSrcLine(),$attr->value->getSrcFile());
+      } catch( EvalAtRuntime $e ) {
+        # skip evaluation at compile-time
+      }
     }
 
     fwrite($this->OUT,$value->getPHPFuncBody($this,$objectdef,$default_table,$this->tables));
