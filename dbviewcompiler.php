@@ -1166,8 +1166,8 @@ function getPHPCode($val) {
         if( $result ) $result .= ",\n  ";
         $result .= getPHPCode($v);
       }
-      $nl = count($result)>1 ? "\n  " : "";
-      $nllast = count($result)>1 ? "\n" : "";
+      $nl = strlen($result)>1 ? "\n  " : "";
+      $nllast = strlen($result)>1 ? "\n" : "";
       $result = "array($nl" . $result . "$nllast)";
       return $result;
     }
