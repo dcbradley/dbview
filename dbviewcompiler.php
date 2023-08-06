@@ -172,14 +172,14 @@ class Lex {
         }
       }
       if( $base == "0" && $this->ch == "x" ) { # hexidecimal
-        $this->value .= $this->ch;
+        $value .= $this->ch;
 	$this->nextChar();
         while( preg_match("/^[[:digit:]a-fA-F]/",$this->ch) ) {
           $value .= $this->ch;
           $this->nextChar();
         }
       } else if( $base == "0" && $this->ch == "b" ) { # binary
-        $this->value .= $this->ch;
+        $value .= $this->ch;
 	$this->nextChar();
         while( preg_match("/^[01]/",$this->ch) ) {
           $value .= $this->ch;
